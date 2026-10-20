@@ -1,0 +1,10 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://ollama.com",
+    "ANTHROPIC_MODEL": "kimi-k3",
+    "ANTHROPIC_AUTH_TOKEN": "YOUR_OLLAMA_API_KEY",
+    "ANTHROPIC_API_KEY": "",
+    "OLLAMA_API_KEY": "YOUR_OLLAMA_API_KEY"
+  },
+  "model": "kimi-k3"
+}

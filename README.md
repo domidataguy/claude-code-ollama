@@ -48,10 +48,12 @@ Clone this repo, `cd` into it, and edit `settings.example.json`. Then run the co
 
 ### Windows (PowerShell)
 
+Each statement ends with `;` so the block still runs if the paste drops the line breaks.
+
 ```powershell
-$settings = Get-Content -Raw -Path ".\settings.example.json"
-if ($settings -match "YOUR_OLLAMA_API_KEY") { throw "Replace YOUR_OLLAMA_API_KEY in settings.example.json first." }
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude" | Out-Null
+$settings = Get-Content -Raw -Path ".\settings.example.json";
+if ($settings -match "YOUR_OLLAMA_API_KEY") { throw "Replace YOUR_OLLAMA_API_KEY in settings.example.json first." };
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude" | Out-Null;
 Copy-Item -LiteralPath ".\settings.example.json" -Destination "$env:USERPROFILE\.claude\settings.json" -Force
 ```
 

@@ -1,79 +1,43 @@
 # claude-code-ollama
 
-Install Claude Code if it is not already installed, then point it at Ollama Cloud model `kimi-k3`.
+Point Claude Code at Ollama Cloud model `kimi-k3`. All setup values live in `.env` on your machine. The API key is never committed.
 
-The API key is not in this repo. On the machine where you run the setup, put your Ollama Cloud key into `settings.example.json` in both `YOUR_OLLAMA_API_KEY` places.
+The setup script writes `%USERPROFILE%\.claude\settings.json` on Windows and `~/.claude/settings.json` on macOS and Linux. The first run keeps an existing settings file as `settings.json.bak`.
 
-The settings step replaces `%USERPROFILE%\.claude\settings.json` on Windows and `~/.claude/settings.json` on macOS and Linux. Copy that file aside first if you already have Claude Code settings you want to keep.
+## 1. Add your key
 
-## 1. Install Claude Code
+Copy the example env file and set `OLLAMA_API_KEY`. `ANTHROPIC_BASE_URL` and `ANTHROPIC_MODEL` are already set.
 
-Skip this step when `claude` already runs in a terminal.
-
-Official install methods: [Claude Code setup](https://code.claude.com/docs/en/setup). `npm install -g @anthropic-ai/claude-code` is deprecated.
-
-### Windows (PowerShell)
-
-Recommended:
+Windows:
 
 ```powershell
-irm https://claude.ai/install.ps1 | iex
+Copy-Item .env.example .env
 ```
 
-Or WinGet:
-
-```powershell
-winget install Anthropic.ClaudeCode
-```
-
-### macOS and Linux
-
-Recommended:
+macOS and Linux:
 
 ```bash
-curl -fsSL https://claude.ai/install.sh | bash
+cp .env.example .env
 ```
 
-Or Homebrew:
+## 2. Run setup
 
-```bash
-brew install --cask claude-code
-```
+From the repo root:
 
-Close the terminal and open a new one so `claude` is on `PATH`.
+| System | One step |
+| --- | --- |
+| Windows | Double-click `setup.bat` |
+| macOS | Double-click `setup.command` |
+| Linux | `chmod +x setup.sh && ./setup.sh` |
 
-## 2. Set the Ollama key and model
-
-Clone this repo, `cd` into it, and edit `settings.example.json`. Then run the copy command for your system from the repo root.
-
-### Windows (PowerShell)
-
-Each statement ends with `;` so the block still runs if the paste drops the line breaks.
-
-```powershell
-$settings = Get-Content -Raw -Path ".\settings.example.json";
-if ($settings -match "YOUR_OLLAMA_API_KEY") { throw "Replace YOUR_OLLAMA_API_KEY in settings.example.json first." };
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude" | Out-Null;
-Copy-Item -LiteralPath ".\settings.example.json" -Destination "$env:USERPROFILE\.claude\settings.json" -Force
-```
-
-### macOS and Linux
-
-```bash
-if grep -q "YOUR_OLLAMA_API_KEY" ./settings.example.json; then
-  echo "Replace YOUR_OLLAMA_API_KEY in settings.example.json first." >&2
-  exit 1
-fi
-mkdir -p "$HOME/.claude"
-cp ./settings.example.json "$HOME/.claude/settings.json"
-```
+The script builds Claude Code settings from `.env`. It installs Claude Code when `claude` is missing, and updates it when a newer version is available. Windows uses WinGet. macOS and Linux use `claude update`, or the [native installer](https://code.claude.com/docs/en/setup) when Claude Code is not installed.
 
 ## 3. Start Claude Code
 
-Quit any Claude Code session that is already open. In your project directory, run:
+Quit any Claude Code session that is already open. Open a new terminal in your project directory and run:
 
 ```bash
 claude
 ```
 
-A new session uses Ollama Cloud model `kimi-k3` with no `--model` flag.
+A new session uses the model from `ANTHROPIC_MODEL` in `.env`.

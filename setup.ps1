@@ -26,30 +26,128 @@ function Assert-JsonValue {
     }
 }
 
-$envFile = Join-Path $PSScriptRoot ".env"
-if (-not (Test-Path -LiteralPath $envFile)) {
-    throw "Create .env from .env.example and set OLLAMA_API_KEY."
+function Read-HiddenText {
+    param([string]$Prompt)
+    $secure = Read-Host $Prompt -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try {
+        return ([Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)).Trim()
+    } finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    }
 }
 
-$vars = Read-DotEnv $envFile
+function Read-ProviderChoice {
+    Write-Host "This repo is designed for Ollama Cloud (https://ollama.com), model kimi-k3."
+    Write-Host "Choose an API provider. Any choice other than Ollama Cloud asks you to type the endpoint."
+    Write-Host "  1) Ollama Cloud (recommended)"
+    Write-Host "  2) Ollama on this computer (localhost)"
+    Write-Host "  3) Moonshot (Kimi)"
+    Write-Host "  4) Z.AI (GLM)"
+    Write-Host "  5) MiniMax"
+    Write-Host "  6) DeepSeek"
+    Write-Host "  7) OpenRouter"
+    Write-Host "  8) Anthropic"
+    Write-Host "  9) OpenAI"
+    Write-Host "  10) Azure OpenAI"
+    Write-Host "  11) Azure AI Foundry"
+    Write-Host "  12) Google AI Studio"
+    Write-Host "  13) Other"
+    $choice = (Read-Host "Provider [1]").Trim()
+    if ([string]::IsNullOrWhiteSpace($choice)) { $choice = "1" }
+    switch ($choice) {
+        "1" { return [pscustomobject]@{ Id = "ollama-cloud"; Name = "Ollama Cloud"; Hint = "https://ollama.com" } }
+        "2" { return [pscustomobject]@{ Id = "ollama-local"; Name = "Ollama on this computer"; Hint = "http://localhost:11434" } }
+        "3" { return [pscustomobject]@{ Id = "moonshot"; Name = "Moonshot (Kimi)"; Hint = "https://api.moonshot.ai/anthropic" } }
+        "4" { return [pscustomobject]@{ Id = "zai"; Name = "Z.AI (GLM)"; Hint = "https://api.z.ai/api/anthropic" } }
+        "5" { return [pscustomobject]@{ Id = "minimax"; Name = "MiniMax"; Hint = "https://api.minimax.io/anthropic" } }
+        "6" { return [pscustomobject]@{ Id = "deepseek"; Name = "DeepSeek"; Hint = "https://api.deepseek.com/anthropic" } }
+        "7" { return [pscustomobject]@{ Id = "openrouter"; Name = "OpenRouter"; Hint = "https://openrouter.ai/api" } }
+        "8" { return [pscustomobject]@{ Id = "anthropic"; Name = "Anthropic"; Hint = "https://api.anthropic.com" } }
+        "9" { return [pscustomobject]@{ Id = "openai"; Name = "OpenAI"; Hint = "https://api.openai.com/v1" } }
+        "10" { return [pscustomobject]@{ Id = "azure-openai"; Name = "Azure OpenAI"; Hint = "https://YOUR_RESOURCE.openai.azure.com" } }
+        "11" { return [pscustomobject]@{ Id = "azure-foundry"; Name = "Azure AI Foundry"; Hint = "https://YOUR_RESOURCE.services.ai.azure.com" } }
+        "12" { return [pscustomobject]@{ Id = "google-ai-studio"; Name = "Google AI Studio"; Hint = "https://generativelanguage.googleapis.com" } }
+        "13" { return [pscustomobject]@{ Id = "other"; Name = "Other"; Hint = "" } }
+        default { throw "Choose a provider from 1 to 13." }
+    }
+}
+
+$envFile = Join-Path $PSScriptRoot ".env"
+$vars = @{}
+if (Test-Path -LiteralPath $envFile) {
+    $vars = Read-DotEnv $envFile
+}
 $key = [string]$vars["OLLAMA_API_KEY"]
 $base = [string]$vars["ANTHROPIC_BASE_URL"]
 $model = [string]$vars["ANTHROPIC_MODEL"]
+$context = [string]$vars["CLAUDE_CODE_MAX_CONTEXT_TOKENS"]
+$useFoundry = [string]$vars["CLAUDE_CODE_USE_FOUNDRY"]
+if ([string]::IsNullOrWhiteSpace($key) -or $key -eq "YOUR_OLLAMA_API_KEY") {
+    $provider = Read-ProviderChoice
+    if ($provider.Id -eq "ollama-cloud") {
+        $base = "https://ollama.com"
+        $model = "kimi-k3"
+        $context = "1000000"
+    } else {
+        Write-Host "This repo is designed for Ollama Cloud. Type the API endpoint for $($provider.Name)."
+        if ($provider.Hint) { Write-Host "Usual endpoint: $($provider.Hint)" }
+        $base = (Read-Host "API endpoint").Trim()
+        if ([string]::IsNullOrWhiteSpace($base)) { throw "An API endpoint is required when the provider is not Ollama Cloud." }
+        $model = (Read-Host "Model name").Trim()
+        if ([string]::IsNullOrWhiteSpace($model)) { throw "A model name is required." }
+        if ($model -eq "kimi-k3") { $context = "1000000" } else { $context = "200000" }
+        if ($provider.Id -eq "azure-foundry") { $useFoundry = "1" }
+    }
+    if ($provider.Id -eq "ollama-local") {
+        Write-Host "Enter the API key. It is saved in .env and is not shown as you type. Press Enter to use ollama for a local server."
+        $key = Read-HiddenText "API key"
+        if ([string]::IsNullOrWhiteSpace($key)) { $key = "ollama" }
+    } else {
+        $keyLabel = "API key"
+        if ($provider.Id -eq "ollama-cloud") { $keyLabel = "Ollama Cloud API key" }
+        Write-Host "Enter the $keyLabel. It is saved in .env and is not shown as you type."
+        $key = Read-HiddenText $keyLabel
+        if ([string]::IsNullOrWhiteSpace($key) -or $key -eq "YOUR_OLLAMA_API_KEY") {
+            throw "An API key is required."
+        }
+    }
+    Assert-JsonValue "OLLAMA_API_KEY" $key
+    Assert-JsonValue "ANTHROPIC_BASE_URL" $base
+    Assert-JsonValue "ANTHROPIC_MODEL" $model
+    Assert-JsonValue "CLAUDE_CODE_MAX_CONTEXT_TOKENS" $context
+    $utf8Env = New-Object System.Text.UTF8Encoding $false
+    $envText = "ANTHROPIC_BASE_URL=$base`nANTHROPIC_MODEL=$model`nCLAUDE_CODE_MAX_CONTEXT_TOKENS=$context`nOLLAMA_API_KEY=$key`n"
+    if ($useFoundry -eq "1") { $envText += "CLAUDE_CODE_USE_FOUNDRY=1`n" }
+    [System.IO.File]::WriteAllText($envFile, $envText, $utf8Env)
+    Write-Host "Created .env"
+}
 if ([string]::IsNullOrWhiteSpace($base)) { $base = "https://ollama.com" }
 if ([string]::IsNullOrWhiteSpace($model)) { $model = "kimi-k3" }
-if ([string]::IsNullOrWhiteSpace($key) -or $key -eq "YOUR_OLLAMA_API_KEY") {
-    throw "Set OLLAMA_API_KEY in .env."
-}
+if ([string]::IsNullOrWhiteSpace($context)) { $context = "1000000" }
 Assert-JsonValue "OLLAMA_API_KEY" $key
 Assert-JsonValue "ANTHROPIC_BASE_URL" $base
 Assert-JsonValue "ANTHROPIC_MODEL" $model
+Assert-JsonValue "CLAUDE_CODE_MAX_CONTEXT_TOKENS" $context
 
 $rendered = @"
 {
   "env": {
     "ANTHROPIC_BASE_URL": "$base",
     "ANTHROPIC_MODEL": "$model",
-    "ANTHROPIC_AUTH_TOKEN": "$key",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "$model",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "$model",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "$model",
+    "ANTHROPIC_DEFAULT_FABLE_MODEL": "$model",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "$model",
+    "ANTHROPIC_CUSTOM_MODEL_OPTION": "$model",
+    "CLAUDE_CODE_MAX_CONTEXT_TOKENS": "$context",
+$(if ($useFoundry -eq "1") { @"
+    "CLAUDE_CODE_USE_FOUNDRY": "1",
+    "ANTHROPIC_FOUNDRY_BASE_URL": "$base",
+    "ANTHROPIC_FOUNDRY_API_KEY": "$key",
+
+"@ } else { "" })    "ANTHROPIC_AUTH_TOKEN": "$key",
     "ANTHROPIC_API_KEY": "",
     "OLLAMA_API_KEY": "$key"
   },

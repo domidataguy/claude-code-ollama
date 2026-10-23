@@ -1,8 +1,6 @@
 # claude-code-ollama
 
-<video src="https://github.com/domidataguy/claude-code-ollama/raw/main/dominic_ollama_claude_code_cli_installer.mp4" controls width="720"></video>
-
-[Watch the setup walkthrough](dominic_ollama_claude_code_cli_installer.mp4)
+[![Setup walkthrough. Click to play.](dominic_ollama_claude_code_cli_installer.png)](dominic_ollama_claude_code_cli_installer.mp4)
 
 Point Claude Code at Ollama Cloud model `kimi-k3`. All setup values live in `.env` on your machine. The API key is never committed.
 

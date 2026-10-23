@@ -2,7 +2,7 @@
 
 Setup walkthrough. Click the screen to play.
 
-https://github.com/user-attachments/assets/522bd8e9-f02b-46c5-b5c9-b530ce94cbcf
+https://github.com/user-attachments/assets/daa8227f-1256-4d70-9d75-d34fa75b750f
 
 Point Claude Code at Ollama Cloud model `kimi-k3`. All setup values live in `.env` on your machine. The API key is never committed.
 
